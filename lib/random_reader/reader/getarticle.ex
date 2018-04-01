@@ -6,41 +6,33 @@ defmodule RandomReader.Reader.GetArticle do
 
   defstruct [:list, :user, :article_data, :blog_post, :title, :link, :error]
 
-  def start_feed(id) do
-    {:ok, feed} = HTTPoison.get("http://www.aaronsw.com/2002/feeds/pgessays.rss")
-
-    list =
-      Quinn.parse(feed.body)
-      |> remove_user_articles(id)
-
-    main(id, list)
-  end
-
   def main(id, list) do
     %GetArticle{list: list, user: id}
+    |> remove_user_articles()
     |> select_random_article()
     |> request_article()
     |> email_article()
     |> update_user()
+    |> handle_errors()
   end
 
-  defp remove_user_articles(blog_list, id) do
+  defp remove_user_articles(%GetArticle{user: id, list: list} = article) do
     user_articles = Reader.user_articles(id)
+    Enum.reject(list, &Enum.member?(user_articles, elem(&1, 1)))
 
-    blog_list -- user_articles
+    %GetArticle{article | list: list}
   end
 
-  def select_random_article(%GetArticle{list: list} = article) do
+  defp select_random_article(%GetArticle{list: list} = article) do
     random_article =
       list
-      |> Quinn.find(:item)
       |> Enum.random()
 
     %GetArticle{
       article
       | list: list,
-        title: obj_to_string(random_article, :title),
-        link: obj_to_string(random_article, :link),
+        title: elem(random_article, 0),
+        link: elem(random_article, 1),
         article_data: random_article
     }
   end
@@ -50,33 +42,36 @@ defmodule RandomReader.Reader.GetArticle do
       {:ok, blog_post} ->
         %GetArticle{article | blog_post: blog_post}
 
-      {:error, error} ->
-        %GetArticle{article | error: error}
+      {:error, _} ->
+        %GetArticle{article | error: true}
     end
   end
 
-  defp obj_to_string(item, type) do
-    obj =
-      Quinn.find(item, type)
-      |> List.first()
+  defp update_user(%GetArticle{error: true} = article), do: article
 
-    List.first(obj.value)
-  end
-
-  defp update_user(%GetArticle{title: title, user: id}) do
+  defp update_user(%GetArticle{title: title, user: id} = article) do
     Repo.insert!(%Reader.Article{title: title, user_id: id})
+
+    article
   end
+
+  defp email_article(%GetArticle{error: true} = article), do: article
 
   defp email_article(%GetArticle{user: id, blog_post: blog_post, title: title} = article) do
     user = Accounts.get_user!(id)
 
-    body =
-      blog_post.body
-      |> Readability.article()
-      |> Readability.readable_html()
-
-    Email.new_email(body, user.email, title) |> RandomReader.Mailer.deliver_now()
+    blog_post.body
+    |> Readability.article()
+    |> Readability.readable_html()
+    |> Email.new_email(user.email, title)
+    |> RandomReader.Mailer.deliver_now()
 
     article
   end
+
+  defp handle_errors(%GetArticle{user: id, error: true}) do
+    IO.puts("Error for User #{id}")
+  end
+  defp handle_errors(%GetArticle{error: nil} = article), do: article
+  defp handle_errors(%GetArticle{} = article), do: article
 end
