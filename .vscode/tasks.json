@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "elixir-formatter",
+      "type": "shell",
+      "command": "mix format",
+      "args": ["${file}"],
+      "presentation": {
+        "reveal": "never"
+      },
+      "problemMatcher": ["$mixCompileError"]
+    }
+  ]
+}
