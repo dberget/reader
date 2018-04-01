@@ -72,6 +72,5 @@ defmodule RandomReader.Reader.GetArticle do
   defp handle_errors(%GetArticle{user: id, error: true}) do
     IO.puts("Error for User #{id}")
   end
-  defp handle_errors(%GetArticle{error: nil} = article), do: article
   defp handle_errors(%GetArticle{} = article), do: article
 end
