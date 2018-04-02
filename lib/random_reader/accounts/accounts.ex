@@ -27,14 +27,21 @@ defmodule RandomReader.Accounts do
     Repo.all(query)
   end
 
-  def user_titles(user_id) do
+  def user_titles_count(user_id) do
     query = from(u in "reader_articles", where: u.user_id == ^user_id, select: count(u.title))
     Repo.all(query)
   end
 
+  def check_if_user_complete(user_id) do
+    user_title_count = Accounts.user_titles_count(user_id) |> List.first()
+
+  # if user_title_count >= master_article_count, do: mark_complete(user_id)
+  end
+
   def mark_complete(user_id) do
-    user = __MODULE__.get_user!(user_id)
-    __MODULE__.update_user(user, %{complete: true})
+    user = get_user!(user_id)
+
+    update_user(user, %{complete: true})
   end
 
   def get_user!(id), do: Repo.get!(User, id)

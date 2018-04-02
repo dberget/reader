@@ -1,4 +1,4 @@
-defmodule RandomReader.Reader.ProcessList do
+defmodule RandomReader.Reader.ListRetriever do
   def get_list do
     case HTTPoison.get("http://www.aaronsw.com/2002/feeds/pgessays.rss") do
       {:ok, feed} ->

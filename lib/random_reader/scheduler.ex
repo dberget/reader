@@ -1,6 +1,6 @@
 defmodule RandomReader.Schedule do
   alias RandomReader.Accounts
-  alias RandomReader.Reader.{GetArticle, ProcessList}
+  alias RandomReader.Reader.{ArticleRetriever, ListRetriever}
   use GenServer
 
   @moduledoc """
@@ -19,8 +19,8 @@ defmodule RandomReader.Schedule do
   # Server Callback
 
   def handle_info(:work, state) do
-    list_task = Task.async(fn -> ProcessList.get_list() end)
-    list = Task.await(list_task, :infinity)
+    list_task = Task.async(fn -> ListRetriever.get_list() end)
+    list = Task.await(list_task)
 
     perform_work(list)
     schedule_work()
@@ -30,12 +30,12 @@ defmodule RandomReader.Schedule do
 
   defp perform_work(list) do
     Accounts.all_incomplete_users()
-    |> Task.async_stream(GetArticle, :main, [list], [])
+    |> Task.async_stream(ArticleRetriever, :get_article, [list], [])
     |> Enum.to_list()
   end
 
   defp schedule_work() do
     # 24 hours 86400000
-    Process.send_after(self(), :work, 8000)
+    # Process.send_after(self(), :work, 8000)
   end
 end
